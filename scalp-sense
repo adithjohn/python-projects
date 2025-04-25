@@ -1,0 +1,346 @@
+from google.colab import drive
+drive.mount('/content/drive')
+!ls '/content/drive/MyDrive/'
+!ls '/content/drive/MyDrive/Hair Diseases'
+
+
+
+from keras.layers import Input, Lambda, Dense, Flatten
+from keras.models import Model
+from keras.applications.vgg19 import VGG19
+from keras.applications.vgg19 import preprocess_input
+from keras.preprocessing import image
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.models import Sequential
+import numpy as np
+from glob import glob
+import matplotlib.pyplot as plt
+import tensorflow as tf
+
+IMAGE_SIZE = [224, 224]
+
+train_path = r'/content/drive/MyDrive/Hair Diseases/train'
+test_path = r'/content/drive/MyDrive/Hair Diseases/test'
+val_path = r'/content/drive/MyDrive/Hair Diseases/val'
+
+rn = VGG19(input_shape=IMAGE_SIZE + [3], weights='imagenet', include_top=False)
+
+for layer in rn.layers:
+    layer.trainable = False
+
+folders = glob(train_path+'\*')
+
+x = Flatten()(rn.output)
+
+prediction = Dense(10, activation='softmax')(x)
+model = Model(inputs=rn.input, outputs=prediction)
+
+model.summary()
+Model: "functional"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ input_layer (InputLayer)        │ (None, 224, 224, 3)    │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block1_conv1 (Conv2D)           │ (None, 224, 224, 64)   │         1,792 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block1_conv2 (Conv2D)           │ (None, 224, 224, 64)   │        36,928 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block1_pool (MaxPooling2D)      │ (None, 112, 112, 64)   │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block2_conv1 (Conv2D)           │ (None, 112, 112, 128)  │        73,856 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block2_conv2 (Conv2D)           │ (None, 112, 112, 128)  │       147,584 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block2_pool (MaxPooling2D)      │ (None, 56, 56, 128)    │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block3_conv1 (Conv2D)           │ (None, 56, 56, 256)    │       295,168 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block3_conv2 (Conv2D)           │ (None, 56, 56, 256)    │       590,080 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block3_conv3 (Conv2D)           │ (None, 56, 56, 256)    │       590,080 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block3_conv4 (Conv2D)           │ (None, 56, 56, 256)    │       590,080 │
+├─────────────────────────────────┼────────────────────────┼─── block3_pool (MaxPooling2D)      │ (None, 28, 28, 256)    │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block4_conv1 (Conv2D)           │ (None, 28, 28, 512)    │     1,180,160 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block4_conv2 (Conv2D)           │ (None, 28, 28, 512)    │     2,359,808 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block4_conv3 (Conv2D)           │ (None, 28, 28, 512)    │     2,359,808 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block4_conv4 (Conv2D)           │ (None, 28, 28, 512)    │     2,359,808 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block4_pool (MaxPooling2D)      │ (None, 14, 14, 512)    │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block5_conv1 (Conv2D)           │ (None, 14, 14, 512)    │     2,359,808 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block5_conv2 (Conv2D)           │ (None, 14, 14, 512)    │     2,359,808 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block5_conv3 (Conv2D)           │ (None, 14, 14, 512)    │     2,359,808 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block5_conv4 (Conv2D)           │ (None, 14, 14, 512)    │     2,359,808 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ block5_pool (MaxPooling2D)      │ (None, 7, 7, 512)      │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ flatten (Flatten)               │ (None, 25088)          │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ dense (Dense)                   │ (None, 10)             │       250,890 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 20,275,274 (77.34 MB)
+ Trainable params: 250,890 (980.04 KB)
+ Non-trainable params: 20,024,384 (76.39 MB)
+
+train_datagen = ImageDataGenerator(rescale = 1./255)
+test_datagen = ImageDataGenerator(rescale = 1./255)
+val_datagen = ImageDataGenerator(rescale = 1./255)
+
+training_set = train_datagen.flow_from_directory(
+    directory=train_path,
+    target_size=IMAGE_SIZE,
+    batch_size=64,
+    class_mode='categorical',
+    shuffle=True
+)
+
+val_set = val_datagen.flow_from_directory(
+    directory=val_path,
+    target_size=IMAGE_SIZE,
+    batch_size=64,
+    class_mode='categorical',
+    shuffle=False
+)
+
+test_set = test_datagen.flow_from_directory(
+    directory=test_path,
+    target_size=IMAGE_SIZE,
+    batch_size=64,
+    class_mode='categorical',
+    shuffle=False
+)
+
+train_datagen = ImageDataGenerator(rescale = 1./255)
+test_datagen = ImageDataGenerator(rescale = 1./255)
+val_datagen = ImageDataGenerator(rescale = 1./255)
+
+training_set = train_datagen.flow_from_directory(
+    directory=train_path,
+    target_size=IMAGE_SIZE,
+    batch_size=64,
+    class_mode='categorical',
+    shuffle=True
+)
+
+val_set = val_datagen.flow_from_directory(
+    directory=val_path,
+    target_size=IMAGE_SIZE,
+    batch_size=64,
+    class_mode='categorical',
+    shuffle=False
+)
+
+test_set = test_datagen.flow_from_directory(
+    directory=test_path,
+    target_size=IMAGE_SIZE,
+    batch_size=64,
+    class_mode='categorical',
+    shuffle=False
+)
+
+import time
+print(time.ctime())
+from time import time
+t_start = time()
+
+import keras
+import tensorflow as tf
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+
+annealer = ReduceLROnPlateau(monitor='accuracy', factor=0.5, patience=5, verbose=1, min_lr=1e-4)
+checkpoint = ModelCheckpoint('/temp/{epoch}.h5', verbose=1, save_best_only=False, mode='auto', save_freq='epoch')
+
+history = model.fit(
+                  training_set,
+                  validation_data=val_set,
+                  epochs=2,
+                  batch_size=128,
+                  callbacks=[annealer, checkpoint],
+                  steps_per_epoch=len(training_set),
+                  validation_steps=len(test_set)
+                )
+
+import time
+print(time.ctime())
+# From 'from time import time' to 'import time'
+import time # instead of from time import time
+t_start = time.time() # calling time() function from the time module
+#time.ctime()
+train_time = time.time() - t_start # calling time() function from the time module
+print('\nTrain time: %.3f'%(train_time/60), ' mins')
+
+model.save("Final.h5")
+print("Model Saved as : Final.h5")
+
+import json
+import pandas as pd
+import numpy as np
+np.save('my_history.npy',history.history)
+
+# convert the history.history dict to a pandas DataFrame:
+hist_df = pd.DataFrame(history.history)
+
+# save to json:
+hist_json_file = 'history.json'
+with open(hist_json_file, mode='w') as f:
+    hist_df.to_json(f)
+
+# or save to csv:
+hist_csv_file = 'history.csv'
+with open(hist_csv_file, mode='w') as f:
+    hist_df.to_csv(f)
+
+from time import time
+start = time()
+evl = model.evaluate(test_set)
+test_time = time() - start
+
+test_loss, test_acc = evl[0]*100, evl[1]*100
+
+msg = f'Test Accuracy = {test_acc:5.2f} %'
+msg1 = f'Test Loss = {test_loss:5.2f} %'
+msg2 = f'Test Time = {test_time:5.2f} s'
+print(msg)
+print(msg1)
+print(msg2)
+
+import numpy as np
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import itertools
+
+
+def plot_confusion_matrix(cm,
+                          target_names,
+                          title='Confusion matrix',
+                          cmap=None,
+                          normalize=True):
+
+    accuracy = np.trace(cm) / float(np.sum(cm))
+    misclass = 1 - accuracy
+
+    if cmap is None:
+        cmap = plt.get_cmap('Blues')
+
+    plt.figure(figsize=(15, 15))
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+
+    if target_names is not None:
+        tick_marks = np.arange(len(target_names))
+        plt.xticks(tick_marks, target_names, rotation=45)
+        plt.yticks(tick_marks, target_names)
+
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+
+    thresh = cm.max() / 1.5 if normalize else cm.max() / 2
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        if normalize:
+            plt.text(j, i, "{:0.4f}".format(cm[i, j]),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+        else:
+            plt.text(j, i, "{:,}".format(cm[i, j]),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}'.format(accuracy, misclass))
+    plt.show()
+
+classes = ['Alopecia Areata', 'Contact Dermatitis', 'Folliculitis', 'Head Lice', 'Lichen Planus', 'Male Pattern Baldness', 'Psoriasis', 'Seborrheic Dermatitis', 'Telogen Effluvium', 'Tinea Capitis']
+
+y_true = np.array(test_set.labels)
+print("True : ", y_true)
+
+y_pred = model.predict(test_set)
+y_pred = np.argmax(y_pred, axis=1)
+print("Predicted : ", y_pred)
+
+conf_mat = confusion_matrix(y_true, y_pred)
+
+plot_confusion_matrix(cm           = conf_mat,
+                      normalize    = False,
+                      target_names = classes,
+                      title        = "Confusion Matrix")
+
+import numpy as np
+
+def plot_confusion_matrix(cm,
+                          target_names,
+                          title='Confusion matrix',
+                          cmap=None,
+                          normalize=True):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import itertools
+
+    accuracy = np.trace(cm) / float(np.sum(cm))
+    misclass = 1 - accuracy
+
+    if cmap is None:
+        cmap = plt.get_cmap('Blues')
+
+    plt.figure(figsize=(15, 15))
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+
+    if target_names is not None:
+        tick_marks = np.arange(len(target_names))
+        plt.xticks(tick_marks, target_names, rotation=45)
+        plt.yticks(tick_marks, target_names)
+
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+
+    thresh = cm.max() / 1.5 if normalize else cm.max() / 2
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        if normalize:
+            plt.text(j, i, "{:0.4f}".format(cm[i, j]),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+        else:
+            plt.text(j, i, "{:,}".format(cm[i, j]),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}'.format(accuracy, misclass))
+    plt.show()
+
+# Plotting Loss & Accuracy Graphs
+from sklearn.metrics import confusion_matrix
+plt.figure(figsize=(12, 12))
+plt.subplot(3, 2, 1)
+plt.plot(history.history['acc'], label = 'train_accuracy')
+plt.plot(history.history['val_acc'], label = 'val_accuracy')
+plt.xlabel('epoch')
+plt.ylabel('accuracy')
+plt.legend()
+plt.subplot(3, 2, 2)
+plt.plot(history.history['loss'], label = 'train_loss')
+plt.plot(history.history['val_loss'], label = 'val_loss')
+plt.xlabel('epoch')
+plt.ylabel('accuracy')
+plt.legend()
+plt.show()
+
+explain me each and every line of a code in details and from scratch, which model I have used, total dataset images,and all the other necessary detailss
